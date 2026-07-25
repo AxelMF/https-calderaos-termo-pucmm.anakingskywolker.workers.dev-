@@ -1,0 +1,47 @@
+{
+  "rules": {
+    ".read": false,
+    ".write": false,
+
+    "lecturas": {
+      ".read": "auth != null",
+      ".write": "auth != null",
+      "temperatura":            { ".validate": "newData.isNumber()" },
+      "presion_man_kpa":        { ".validate": "newData.isNumber()" },
+      "presion_abs_kpa":        { ".validate": "newData.isNumber()" },
+      "estado_bomba":           { ".validate": "newData.isBoolean()" },
+      "estado_resistencia":     { ".validate": "newData.isBoolean()" },
+      "heartbeat":              { ".validate": "newData.isNumber()" },
+      "pzem": {
+        "voltaje":              { ".validate": "newData.isNumber()" },
+        "corriente":            { ".validate": "newData.isNumber()" },
+        "potencia":             { ".validate": "newData.isNumber()" },
+        "energia":              { ".validate": "newData.isNumber()" },
+        "frecuencia":           { ".validate": "newData.isNumber()" },
+        "factor_potencia":      { ".validate": "newData.isNumber()" }
+      }
+    },
+
+    "config": {
+      "setpoint": {
+        ".read": "auth != null",
+        ".write": "auth != null",
+        ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 62"
+      },
+      "setpoint_meta": {
+        ".read": "auth != null",
+        ".write": "auth != null"
+      }
+    },
+
+    "calderaOS": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    },
+
+    "historial": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    }
+  }
+}
