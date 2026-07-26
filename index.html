@@ -621,18 +621,16 @@ canvas.thermo-canvas{ width:100%; height:190px; display:block; margin-top:8px; }
                     <span class="trend flat" id="tr-tint">▶</span>
                   </div>
                 </div>
-                <!-- °F oculto: se sigue calculando (updateUI) pero ya no se muestra en el dashboard -->
-                <span id="v-tint-f" style="display:none">--</span>
+
                 <div class="metric-card mc-pres">
-                  <div class="metric-label">Presión</div>
+                  <div class="metric-label">Presión absoluta</div>
                   <div class="metric-row">
                     <span class="metric-val" id="v-pres" style="color:var(--blue)">--</span>
                     <span class="metric-unit">kPa</span>
                     <span class="trend flat" id="tr-pres">▶</span>
                   </div>
                 </div>
-                <!-- PSI oculto: se sigue calculando (updateUI) pero ya no se muestra en el dashboard -->
-                <span id="v-pres-psi" style="display:none">--</span>
+                   
                 <div class="metric-card mc-text">
                   <div class="metric-label">Voltaje</div>
                   <div class="metric-row">
@@ -782,7 +780,7 @@ canvas.thermo-canvas{ width:100%; height:190px; display:block; margin-top:8px; }
               </div>
               <div class="chart-wrap" style="margin-top:10px">
                 <div class="chart-label">
-                  <span style="color:var(--blue)">● Presión kPa</span>
+                  <span style="color:var(--blue)">● Presión abs. kPa</span>
                   <span id="mc-pres" style="color:var(--blue);font-family:var(--mono)">--</span>
                 </div>
                 <canvas id="chartP"></canvas>
@@ -1616,10 +1614,12 @@ function updateUI(){
   const pP=S.histP.length?S.histP[S.histP.length-1]:S.pres;
   _pushSample(); // registro atómico — ver definición, garantiza que las 8 series nunca se desincronicen
   // cards
-  setTxt('v-tint',fmt(S.temp)); setTxt('v-pres',fmt(S.pres));
+  // DESPUES
+  const _pAbs = _presAbs();                       // kPa absolutos
+  setTxt('v-tint', fmt(S.temp));
+  setTxt('v-pres', fmt(_pAbs,1));
   setTrend('tr-tint',S.temp,pT); setTrend('tr-pres',S.pres,pP);
-  setTxt('v-tint-f', fmt(S.temp*9/5+32,1));
-  setTxt('v-pres-psi', fmt(S.pres/6.895,2));
+  setTxt('v-pres-psi', '('+fmt(_pAbs*PSI_POR_KPA,2)+' psi)');
   setTxt('v-volt', fmt(S.volt,1));
   setTxt('v-amp', fmt(S.amp,3));
   setTxt('v-watts', fmt(S.watts,0));
@@ -1632,15 +1632,15 @@ function updateUI(){
   setTxt('v-vol',_tsatStr); setTxt('mc-vol',_tsatStr); setTxt('gl-vol',_tsatStr);
   // sensors
   setTxt('ss-ds1', fmt(S.temp)  +' °C');
-  setTxt('ss-pres',fmt(S.pres)  +' kPa');
+  setTxt('ss-pres',fmt(_pAbs,1)+' kPa abs');
   // gauges
   setGaugeFill('gf-tint',null,S.temp,20,150);
-  setGaugeFill('gf-pres',null,S.pres,0,70); // rango manométrico real (config.h: PRESION_LIMITE=65.5 kPa)
+  setGaugeFill('gf-pres',null,_pAbs,101.325,170); // rango manométrico real (config.h: PRESION_LIMITE=65.5 kPa)
   setGaugeFill('gf-vol', null,_tsat||0, 0, 374);
-  setTxt('gl-tint',fmt(S.temp)); setTxt('gl-pres',fmt(S.pres));
+  setTxt('gl-tint',fmt(S.temp)); setTxt('gl-pres',fmt(_pAbs,0));
   // sparklines
   drawCanvas('chartT',S.histT,'#fbbf24',15,155);
-  drawCanvas('chartP',S.histP,'#38bdf8',85,215);
+  drawCanvas('chartP',S.histPabs,'#38bdf8',95,175);
   // uptime
   if(S.startTs){
     const sec=Math.floor((Date.now()-S.startTs)/1000);
@@ -1705,7 +1705,6 @@ function startMuestreo(){
   const sample=()=>{
     MS.samples.push({
       ts:Date.now(),
-      temp:+S.temp.toFixed(2), tempF:+(S.temp*9/5+32).toFixed(2),
       pres:+S.pres.toFixed(2), presPsi:+(S.pres/6.895).toFixed(3),
       volt:+S.volt.toFixed(2), amp:+S.amp.toFixed(3), watts:+S.watts.toFixed(1),
       fp:+S.fp.toFixed(3), freq:+S.freq.toFixed(2),
@@ -1762,12 +1761,6 @@ function _buildMuestreoSheet(){
     ['Fin:',    n?_fHora(s[n-1].ts):'—'],
     [],
   ];
-  // Tabla de datos crudos
-  const raw=[['#','Fecha','Hora','Temp (°C)','Temp (°F)','Pres (kPa)','Pres (PSI)','Voltaje (V)','Corriente (A)','Potencia (W)','FP','Frec (Hz)']];
-  s.forEach((x,i)=>{
-    const d=new Date(x.ts);
-    raw.push([i+1,d.toLocaleDateString('es-DO'),d.toLocaleTimeString('es-DO',{hour12:false}),x.temp,x.tempF,x.pres,x.presPsi,x.volt,x.amp,x.watts,x.fp,x.freq]);
-  });
   // Histograma — distribución de frecuencias (Sturges: k = 1+3.322log10(n))
   const histBins=(arr,label,unit)=>{
     if(arr.length<2) return [[label+' — datos insuficientes para histograma']];
@@ -1809,7 +1802,7 @@ function wdCheck(){
 
 function wdGoOffline(){
   // Reset sensores a 0
-  S.temp=0; S.pres=0; S.volt=0; S.amp=0; S.watts=0; S.fp=0; S.freq=0; S.ma=4;
+  S.temp=0; S.pres=0; S.presAbs=0; S.volt=0; S.amp=0; S.watts=0; S.fp=0; S.freq=0; S.ma=4;
   S.act.calefac=0; S.act.bomba=0;
   // Limpiar TODOS los historiales — no se conserva el último dato
   S.histT=[]; S.histP=[]; S.histTs=[]; S.histPabs=[]; S.histSP=[]; S.histErr=[];
@@ -1832,8 +1825,8 @@ function wdGoOffline(){
   const bd=$('conn-dot'),bt=$('conn-status-txt');
   if(bd) bd.style.background='#dc2626';
   if(bt) bt.textContent='ESP32 — OFFLINE (watchdog)';
-  setTxt('v-tint','0'); setTxt('v-tint-f','32.0');
-  setTxt('v-pres','0'); setTxt('v-pres-psi','0.00');
+  setTxt('v-tint','0');
+  setTxt('v-pres','0'); setTxt('v-pres-psi','(0.00 psi)');
   setTxt('v-volt','0'); setTxt('v-amp','0'); setTxt('v-watts','0');
   setTxt('v-fp','0'); setTxt('v-freq','0');
   setTxt('gl-tint','0'); setTxt('gl-pres','0');
@@ -1930,7 +1923,6 @@ async function exportAllData(){
   const snap=[
     ['Variable','Valor','Unidad'],
     ['Temperatura',+S.temp.toFixed(2),'°C'],
-    ['Temperatura',+(S.temp*9/5+32).toFixed(2),'°F'],
     ['Presión',+S.pres.toFixed(2),'kPa'],
     ['Presión',+(S.pres/6.895).toFixed(3),'PSI'],
     ['Voltaje',+S.volt.toFixed(2),'V'],
@@ -1969,7 +1961,6 @@ async function exportAllData(){
       d?d.toISOString():'',
       elapsedS,
       t!==''?+t.toFixed(2):'',
-      t!==''?+(t*9/5+32).toFixed(2):'',
       p!==''?+p.toFixed(2):'',
       p!==''?+(p/6.895).toFixed(3):'',
       (S.histPabs||[])[i]??'',
