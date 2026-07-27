@@ -623,13 +623,14 @@ canvas.thermo-canvas{ width:100%; height:190px; display:block; margin-top:8px; }
                 </div>
 
                 <div class="metric-card mc-pres">
-                  <div class="metric-label">Presión absoluta</div>
-                  <div class="metric-row">
-                    <span class="metric-val" id="v-pres" style="color:var(--blue)">--</span>
-                    <span class="metric-unit">kPa</span>
-                    <span class="trend flat" id="tr-pres">▶</span>
-                  </div>
-                </div>
+                 <div class="metric-label">Presión absoluta</div>
+                 <div class="metric-row">
+                   <span class="metric-val" id="v-pres" style="color:var(--blue)">--</span>
+                   <span class="metric-unit">kPa</span>
+                   <span class="metric-unit" id="v-pres-psi" style="color:var(--dim);margin-left:2px">(-- psi)</span>
+                   <span class="trend flat" id="tr-pres">▶</span>
+                 </div>
+               </div>
                    
                 <div class="metric-card mc-text">
                   <div class="metric-label">Voltaje</div>
@@ -1625,7 +1626,7 @@ function updateUI(){
   setTxt('v-watts', fmt(S.watts,0));
   setTxt('v-fp', fmt(S.fp,3));
   setTxt('v-freq', fmt(S.freq,2));
-  setTxt('mc-tint',fmt(S.temp)); setTxt('mc-pres',fmt(S.pres));
+  setTxt('mc-tint',fmt(S.temp)); setTxt('mc-pres',fmt(_pAbs,1));
   // T sat calculada de tablas de vapor
   const _tsat=getTsat(_presAbs());
   const _tsatStr=_tsat!=null?fmt(_tsat,1):'--';
@@ -1883,7 +1884,7 @@ function switchView(v){
   if(nav)  nav.classList.add('active');
   if(v==='dashboard') setTimeout(()=>{
     drawCanvas('chartT',S.histT,'#fbbf24',15,155);
-    drawCanvas('chartP',S.histP,'#38bdf8',85,215);
+    drawCanvas('chartP',S.histPabs,'#38bdf8',95,175);
   },50);
   if(v==='scada') scadaInit();
   if(v==='graficas') setTimeout(()=>{ drawGraficas(); _regUpdateUI(); },80);
